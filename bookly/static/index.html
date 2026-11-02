@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ed">
+  <title>Bookly · Your next chapter</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Bookly home"><span class="brand-mark">b.</span>bookly<span class="brand-dot">®</span></a>
+    <nav aria-label="Main navigation"><span class="nav-active">Your concierge</span><span class="nav-note">GOOD BOOKS. REAL CONNECTIONS.</span></nav>
+    <button class="lab-trigger" id="open-lab"><span class="status-dot"></span><span id="mode-label">Local demo</span><span aria-hidden="true">↗</span></button>
+  </header>
+
+  <main class="workspace">
+    <aside class="left-rail">
+      <div class="customer-block"><div class="avatar" id="avatar">MC</div><div><span class="eyebrow">YOUR LITTLE CORNER</span><h2 id="customer-name">Welcome to Bookly</h2></div></div>
+      <div class="rail-label">A GOOD PLACE TO START</div>
+      <button id="topic-orders" class="topic" data-topic="orders" aria-pressed="false"><span>↗</span> Find my order <span class="topic-arrow">→</span></button>
+      <button id="topic-returns" class="topic" data-topic="returns" aria-pressed="false"><span>↶</span> Return a book <span class="topic-arrow">→</span></button>
+      <button id="topic-discovery" class="topic" data-topic="discovery" aria-pressed="false"><span>✧</span> Find my next read <span class="topic-arrow">→</span></button>
+      <button id="topic-support" class="topic" data-topic="support" aria-pressed="false"><span>?</span> General questions <span class="topic-arrow">→</span></button>
+      <p class="draft-hint">Choose a starting point, then edit and send it when you’re ready.</p>
+      <div class="rail-divider"></div>
+      <div class="rail-label">YOUR CONVERSATION</div>
+      <p class="rail-copy">Pick up where you left off.<br>Your place is saved here.</p>
+      <button id="new-case" class="text-button">＋ Start a fresh conversation</button>
+      <button id="open-history" class="text-button">◷ Past conversations</button>
+      <button id="reset-demo" class="text-button">↺ Reset demo data</button>
+      <div class="rail-bottom"><div class="small-book-mark">✳</div><p>A little less searching.<br>A little more discovering.</p><span class="fineprint">A fictional bookstore, thoughtfully built.</span></div>
+    </aside>
+
+    <section class="conversation" aria-label="Bookly conversation">
+      <div class="conversation-header"><div><span class="eyebrow">THE BOOKLY CONCIERGE</span><h1>A little help.<br><em>A better next chapter.</em></h1><p>Let’s take care of it, together.</p></div><div class="header-art" aria-hidden="true"><span class="art-line"></span><span class="art-star">✳</span><span class="art-book one"></span><span class="art-book two"></span></div></div>
+      <div class="conversation-toolbar"><div class="concierge-presence"><span class="status-dot"></span><span id="channel-description">Web chat · conversation saved</span></div><div class="chat-actions"><button id="open-history-mobile" class="toolbar-button">Past conversations</button><button id="sms-preview" class="toolbar-button">Continue this conversation with text messaging <span class="demo-tag">Demo</span></button></div></div>
+      <div class="message-feed" id="messages" role="log" aria-live="polite" aria-label="Conversation messages"></div>
+      <section id="example-guide" class="example-guide" aria-label="Optional conversation example" hidden><div class="example-heading"><span id="example-label"></span><button id="example-dismiss" type="button" aria-label="Stop conversation example">×</button></div><p id="example-note"></p><div class="example-actions"><button id="example-use" type="button">Use example draft</button><button id="example-next" type="button" data-topic="discovery" hidden>Try book discovery →</button></div></section>
+      <div id="error" class="error-banner" role="alert" hidden></div>
+      <div id="typing" class="typing" role="status" hidden><span></span><span></span><span></span> Finding the right next step…</div>
+      <form id="composer" class="composer"><label class="sr-only" for="message-input">Your message</label><textarea id="message-input" rows="1" maxlength="4000" placeholder="Tell us what’s on your mind…" required></textarea><button id="send" type="submit" aria-label="Send message">↑</button></form>
+      <div class="composer-note"><span id="channel-note">Your conversation stays here, even if you step away.</span><span>BOOKLY CARE</span></div>
+    </section>
+
+    <aside class="right-rail" aria-label="Your books and preferences">
+      <div class="shelf-heading"><span class="eyebrow">A STORY IN EVERY PARCEL</span><h2>Your recent chapters</h2></div>
+      <div id="orders"></div>
+      <div class="preferences-box"><span class="eyebrow">YOUR READING NOTES</span><h3>A little more you.</h3><p id="preferences">Tell us what you enjoy. We’ll only remember it when you ask us to.</p></div>
+      <div class="care-note"><span aria-hidden="true">♡</span><p>Good service starts with listening.<br>We’re glad you’re here.</p></div>
+    </aside>
+  </main>
+
+  <dialog id="lab"><div class="lab-header"><div><span class="eyebrow">BEHIND THE CONVERSATION</span><h2>Demo lab</h2></div><button id="close-lab" aria-label="Close demo lab">×</button></div><p>This local prototype uses fictional customers, books, policies, and transactions. Choosing a customer simulates sign-in.</p><label for="customer-select">Demo customer</label><select id="customer-select"><option value="maya">Maya Chen</option><option value="theo">Theo Brooks</option></select><p class="lab-status" id="lab-mode"></p><section id="live-setup" class="live-setup" hidden aria-labelledby="live-setup-title"><h3 id="live-setup-title">Enable live LLM replies</h3><p>An empty <code>LLM_PROVIDER</code> selects scripted fixtures. To use a real model:</p><ol><li>Copy <code>.env.example</code> to <code>.env</code> if you do not already have one.</li><li>Set these values in your local <code>.env</code> file. Use <code>anthropic</code>, <code>openai</code>, or <code>google</code> for the provider.</li></ol><pre>LLM_PROVIDER=anthropic
+LLM_MODEL=your-model-id
+LLM_API_KEY=your-key</pre><p>Leave <code>LLM_BASE_URL</code> empty for the provider’s public API, or set your compatible gateway URL. Keep keys in your local environment.</p><p>Rebuild and restart the web service:</p><pre>docker compose up --build -d --force-recreate web --wait</pre><p>Refresh this page and start a fresh conversation. The top-right indicator will show <strong>Live</strong> and the selected model. For local Python development, restart Uvicorn instead. An invalid or incomplete provider configuration fails explicitly; it does not fall back to scripted replies.</p></section><button id="reset-demo-lab" class="secondary-button">Reset demo data</button><div class="lab-tabs"><button id="trace-tab" class="selected">Tool activity</button><button id="state-tab">Shared case state</button><button id="prompts-tab">Channel prompts</button></div><div id="lab-content"></div></dialog>
+  <dialog id="history-dialog" aria-labelledby="history-title"><div class="lab-header"><div><span class="eyebrow">PICK UP WHERE YOU LEFT OFF</span><h2 id="history-title">Past conversations</h2></div><button id="close-history" aria-label="Close past conversations">×</button></div><p>Recaps from your saved messages and recorded actions. Open a conversation to continue it.</p><div id="history-list"></div></dialog>
+  <dialog id="sms-dialog" aria-labelledby="sms-title"><div class="lab-header"><div><span class="eyebrow">DESIGN PREVIEW · NOT CONNECTED</span><h2 id="sms-title">Continue by text</h2></div><button id="close-sms" aria-label="Close text messaging preview">×</button></div><p>This is an example of how this conversation could continue by SMS. No message is sent, no phone number is collected, and your conversation stays in web chat.</p><div class="sms-preview-thread"><span>BOOKLY · EXAMPLE TEXT MESSAGE</span><p id="sms-message"></p></div><p id="sms-recap"></p><button id="sms-prompts" class="secondary-button">Compare channel prompts</button></dialog>
+  <dialog id="reset-dialog" aria-labelledby="reset-title"><span class="eyebrow">START THE DEMO AGAIN</span><h2 id="reset-title">Reset demo data?</h2><p>This clears conversations, returns, reading preferences, and tool activity for <strong>both demo customers</strong>. It restores the original books, orders, saved preferences, and prior book feedback with fresh dates.</p><p>Your LLM settings and credentials stay unchanged. A fresh conversation will open with the demo customer’s reading context.</p><p id="reset-error" role="alert" hidden></p><div class="card-buttons"><button id="reset-cancel" class="secondary-button">Cancel</button><button id="reset-confirm" class="primary-button">Reset demo data</button></div></dialog>
+  <div id="boot-error" hidden role="alert"></div>
+</body>
+</html>

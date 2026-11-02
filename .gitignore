@@ -1,0 +1,33 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+.venv/
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local runtime data
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.log
+
+# Machine metadata and temporary work
+.DS_Store
+tmp/
+/output/.pitch-build/
+/docs/SESSION_HANDOFF.md
+
+# Final presentation files in output/ remain available to commit.

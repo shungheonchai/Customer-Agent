@@ -1,0 +1,66 @@
+[
+  {
+    "id": "shipping",
+    "title": "Shipping methods, fees, and delivery",
+    "version": "v1",
+    "updated_at": "2026-11-01T00:00:00+00:00",
+    "passages": [
+      {
+        "id": "fees",
+        "keywords": ["shipping", "cost", "fee", "price", "free", "minimum"],
+        "text": "Bookly's fictional standard shipping costs $4.99 for orders below $35 and is free for orders of $35 or more, based on the merchandise subtotal. No expedited shipping service is offered in this demo."
+      },
+      {
+        "id": "timing",
+        "keywords": ["shipping", "delivery", "time", "long", "processing", "business", "method", "expedited", "weekend"],
+        "text": "Orders are normally processed in 1–2 business days. Standard shipping is estimated at 3–5 business days after dispatch. Business days exclude weekends and public holidays. These are general estimates, not a delivery guarantee or the status of a particular order. Use the customer's order record for its recorded arrival estimate."
+      },
+      {
+        "id": "destinations",
+        "keywords": ["shipping", "international", "destination", "country", "countries", "canada", "overseas", "region", "alaska", "hawaii"],
+        "text": "This fictional Bookly service ships only within the contiguous United States. International shipping, Alaska, and Hawaii are not supported in the demo."
+      },
+      {
+        "id": "delays",
+        "keywords": ["shipping", "late", "delay", "missing", "arrive", "arrived", "estimated"],
+        "text": "If an order has passed its estimated arrival date, check its current order record first. If the record does not resolve the question, a delivery investigation through support is the next step. This demo cannot contact a carrier, start a real investigation, guarantee an arrival date, or automatically refund a late shipment."
+      }
+    ]
+  },
+  {
+    "id": "returns",
+    "title": "Returns and refunds",
+    "version": "v1",
+    "updated_at": "2026-11-01T00:00:00+00:00",
+    "passages": [
+      {
+        "id": "eligibility",
+        "keywords": ["return", "policy", "window", "days", "eligible", "eligibility", "exchange", "damaged"],
+        "text": "Under {{policy}}, a delivered physical copy can be returned within {{return_window_days}} days of delivery if that copy has not already been returned. Damaged, wrong-item, and changed-mind returns use the same eligibility checks. This demo does not support exchanges. For a specific purchase, the backend must check ownership and current eligibility; this article does not approve a return."
+      },
+      {
+        "id": "refund",
+        "keywords": ["refund", "money", "amount", "payment", "inspection", "long", "timing", "mail", "send", "back"],
+        "text": "The refund amount is the price actually paid for that purchased copy, not a customer-requested amount or its current catalog price. {{terms}} Both standard and damaged-book returns require mailing the book back. The customer must explicitly confirm a prepared return card. This demo records a return request; it does not issue money, generate a real shipping label, or verify the status of a real refund."
+      }
+    ]
+  },
+  {
+    "id": "password",
+    "title": "Resetting a password safely",
+    "version": "v1",
+    "updated_at": "2026-11-01T00:00:00+00:00",
+    "passages": [
+      {
+        "id": "steps",
+        "keywords": ["password", "reset", "forgot", "forgotten", "login", "signin", "locked"],
+        "text": "For Bookly's proposed account flow, open the sign-in page, choose Forgot password, enter the email associated with your account there, and follow the reset email. If it does not arrive, check spam and verify the address on that page. This demo has a customer picker rather than real accounts: it has no password-reset page or email-sending integration. These are help-center instructions for the mocked service, not a claim that a reset email has been sent."
+      },
+      {
+        "id": "security",
+        "keywords": ["password", "reset", "code", "verification", "security", "another", "someone"],
+        "text": "Never share a password, reset link, or verification code in chat. The agent cannot reset another person's password, change account credentials, or bypass identity verification. Use only the official account recovery process; do not enter credentials into an invented link. Account recovery actions are not implemented in this demo."
+      }
+    ]
+  }
+]
