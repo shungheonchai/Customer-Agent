@@ -1,5 +1,9 @@
 # Architecture decisions — initial local milestone
 
+This file describes the implemented demo. For the proposed hybrid specialist and
+memory architecture, see [the production proposal](production-agent-orchestration.md)
+and [the README](../README.md#architecture-and-database-decisions).
+
 ## Thesis and scope
 
 Resolve accurately with low customer effort, then offer optional reading guidance.

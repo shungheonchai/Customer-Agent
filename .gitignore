@@ -27,7 +27,5 @@ htmlcov/
 # Machine metadata and temporary work
 .DS_Store
 tmp/
-/output/.pitch-build/
+/output/
 /docs/SESSION_HANDOFF.md
-
-# Final presentation files in output/ remain available to commit.

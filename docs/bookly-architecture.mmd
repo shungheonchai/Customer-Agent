@@ -1,38 +1,43 @@
+%% Proposed hybrid target. Current demo has concierge + reading specialist only.
 flowchart TB
-    customer["Customer"] --> ui["Web chat"]
-    ui --> api["FastAPI: session identity and case lookup"]
-    api --> concierge["Generalist concierge"]
-    prompts["Service procedure + channel instructions + fresh case context"] -.-> concierge
-    concierge <-->|Live model calls| llm["Configured provider API"]
+    C["Customer"] --> UI["Web chat or future channel adapter"]
+    UI --> API["FastAPI: verified identity in production + durable case"]
+    API --> G["Orders/support concierge: intent, missing facts and routing"]
+    PROMPTS["Service procedure + channel rules + fresh task context"] -.-> G
 
-    subgraph web["web-1: one application service"]
-        api
-        concierge
-        tools["Typed business tools: orders, eligibility, return proposals and status"]
-        rag["Mock RAG: topic and keyword retrieval, up to 3 passages"]
-        specialist["Reading specialist: structured advice, up to 2 picks"]
-        validation["Backend catalog and behavioral checks"]
-        warehouse["Mock dataWarehouse adapter"]
-        confirm["Confirmation endpoint: ownership, eligibility, paid amount and idempotency"]
-    end
+    G -->|Known procedure + sufficient evidence| TOOLS["Routine tools: orders, FAQ retrieval and standard return proposals"]
+    G -->|Invited reading consultation| READING["Reading specialist: implemented consultation"]
+    G -.->|Conflicting records or supported exception investigation| RETURNS["PROPOSED: returns/payments specialist"]
+    G -.->|Evidence-dependent approved recovery decisions| ACCOUNT["PROPOSED: account-management specialist"]
+    G -->|Blocking customer information| ASK["Ask one focused clarifying question"]
+    G -->|Missing authority or discretionary exception| HUMAN["Approved verification workflow or human owner"]
 
-    concierge <-->|Operational questions| tools
-    concierge <-->|General support questions| rag
-    articles["Versioned local help articles"] --> rag
-    concierge -->|Invited book discovery| specialist
-    specialist <-->|Live model calls| llm
-    specialist <-->|Catalog and reading context| db
-    warehouse --> specialist
-    specialist --> validation -->|Validated advice| concierge
+    READING -->|Validated picks + evidence| G
+    RETURNS -.->|Findings + next step + blockers| G
+    ACCOUNT -.->|Findings + next step + blockers| G
+    TOOLS --> CHECKS["Backend authority: ownership, policy, amount and idempotency"]
+    RETURNS -.-> CHECKS
+    ACCOUNT -.-> CHECKS
+    UI -->|Explicit customer confirmation| CHECKS
+    CHECKS --> SHARED[("Shared authoritative business/case facts<br/>Identity scope, owner, orders, consent and action receipts")]
+    SHARED -->|Scoped task view| G
+    SHARED -->|Permitted task context| READING
+    SHARED -.->|Permitted task context| RETURNS
+    SHARED -.->|Permitted task context| ACCOUNT
 
-    subgraph storage["postgres-1: PostgreSQL"]
-        db[("Orders and catalog<br/>Case state and history<br/>Preferences, reviews and events<br/>Mock behavior snapshots")]
-    end
-    db -->|Customer-scoped signals| warehouse
-    tools <--> db
-    db -->|Relevant memory and confirmed action status| concierge
+    PERSONAL[("Customer-specific memory<br/>Original reviews, preferences and consent<br/>Customer-scoped, not exposed across users")]
+    PERSONAL -->|Relevant personal evidence| READING
+    PERSONAL -->|Relevant customer context| G
+    UNIQUE[("PROPOSED domain-owned memory namespaces<br/>Orders/support playbooks<br/>Returns/payment exception lessons<br/>Account recovery procedures<br/>Reading expertise and cohort priors")]
+    UNIQUE -.->|Relevant domain knowledge| G
+    UNIQUE -.->|Reading-only projection| READING
+    UNIQUE -.->|Returns-only projection| RETURNS
+    UNIQUE -.->|Recovery-only projection| ACCOUNT
 
-    ui -->|Explicit customer confirmation| confirm
-    confirm -->|Transactional write| db
-    confirm -->|Return receipt| ui
-    concierge -->|Answer, sources or proposed action| ui
+    OUTCOMES["Outcomes + volunteered feedback"] -.-> REVIEW["Validate aggregates and review lessons"]
+    REVIEW -.-> EVAL["Version, evaluate and approve publication"]
+    EVAL -.-> UNIQUE
+    G -->|Response + sources + proposed next action| UI
+
+    classDef proposed fill:#f9f5eb,stroke:#947c58,stroke-dasharray:5 4;
+    class RETURNS,ACCOUNT,UNIQUE,OUTCOMES,REVIEW,EVAL proposed;

@@ -78,105 +78,180 @@ unchanged. Starting a fresh conversation alone does not undo returns or saved pr
 
 ## Architecture and database decisions
 
-The app contains **two Pydantic AI agents running inside one web service**. Both are
-defined in [bookly/agents.py](bookly/agents.py), with different instructions, tool
-permissions, and responsibilities. An agent does not require its own Python file,
-process, or Docker container.
+The thesis is to resolve issues with little customer effort and use relevant proactive
+engagement to improve the next experience and increase loyalty. The demo shows optional
+in-conversation help grounded in known context; outbound outreach is future work and
+loyalty improvement has not been measured.
 
-| Agent | Responsibility | Tools and output |
-| --- | --- | --- |
-| Generalist concierge | Owns the customer conversation, resolves order/return requests, retrieves context and help articles, and delegates invited discovery | Account-scoped order, eligibility, return-proposal, feedback, history, support-knowledge retrieval, preference-proposal, and mock expert-request tools; customer-facing replies |
-| Reading specialist | Consults on the customer's next read without taking over the conversation | `get_reading_context` and `find_catalog_books`; structured `ReadingAdvice` with at most two book IDs, reasons, and a note; no account-action tools |
+### Implemented demo and proposed target
 
-```text
-web-1: FastAPI + web UI + both Pydantic AI agents
-  Customer message
-    → generalist concierge
-        ├─ order / eligibility / return-proposal tools
-        ├─ history / feedback / preference-proposal tools
-        ├─ search_support_knowledge() → approved local help passages
-        └─ recommend_books()
-             → reading specialist
-                 ├─ get_reading_context(): preferences, reviews, feedback, warehouse
-                 └─ find_catalog_books(): eligible, unpurchased catalog candidates
-             ← structured recommendations
-             → backend validates selected books
-        ← validated tool result
-    ← generalist customer-facing reply
+The running app has **two Pydantic AI agents** in `web-1`: a generalist concierge and
+a reading specialist. `postgres-1` stores operational records and customer/case context.
+Both agents use the same configured provider through separate runs. Pydantic AI handles
+the model/tool loop; Python code defines tools, delegation, persistence and guardrails.
 
-  Customer confirmation click
-    → account-scoped endpoint → eligibility recheck + transactional action
+The concierge currently handles orders, general support retrieval and return proposals.
+The reading specialist handles invited discovery with a narrow tool set and structured
+output. Password help is informational; account mutations and payment settlement are
+not implemented. Business integrations and customer identity are mocked.
 
-postgres-1: persistent operational records, customer context, and mock warehouse snapshots
+**The hybrid architecture below is the proposed production evolution.** It adds domain
+specialists for supported exception investigation and evidence-dependent recovery,
+plus reviewed domain learning. Those additional agents and memory-learning capabilities
+are not present in the current demo. The [implemented diagram](docs/bookly-current-architecture.mmd)
+and [target Mermaid source](docs/bookly-architecture.mmd) keep that distinction explicit.
+
+### Hybrid routing and specialist triggers
+
+Hybrid means one orders/support concierge handles routine support through tools,
+while domain specialists handle focused reasoning. Within that architecture,
+returns follow fixed stages and the reading specialist selects and explains books.
+
+The concierge remains the customer-facing owner and handles routine requests through
+known tools or approved retrieval. Specialists return typed findings, evidence,
+proposed next steps and blockers. A full conversation/human handoff is a separate,
+explicit change of case ownership.
+
+```mermaid
+flowchart TB
+    C["Customer"] --> UI["Web chat or future channel adapter"]
+    UI --> API["FastAPI: verified identity in production + durable case"]
+    API --> G["Orders/support concierge: intent, missing facts and routing"]
+    PROMPTS["Service procedure + channel rules + fresh task context"] -.-> G
+
+    G -->|Known procedure + sufficient evidence| TOOLS["Routine tools: orders, FAQ retrieval and standard return proposals"]
+    G -->|Invited reading consultation| READING["Reading specialist: implemented consultation"]
+    G -.->|Conflicting records or supported exception investigation| RETURNS["PROPOSED: returns/payments specialist"]
+    G -.->|Evidence-dependent approved recovery decisions| ACCOUNT["PROPOSED: account-management specialist"]
+    G -->|Blocking customer information| ASK["Ask one focused clarifying question"]
+    G -->|Missing authority or discretionary exception| HUMAN["Approved verification workflow or human owner"]
+
+    READING -->|Validated picks + evidence| G
+    RETURNS -.->|Findings + next step + blockers| G
+    ACCOUNT -.->|Findings + next step + blockers| G
+    TOOLS --> CHECKS["Backend authority: ownership, policy, amount and idempotency"]
+    RETURNS -.-> CHECKS
+    ACCOUNT -.-> CHECKS
+    UI -->|Explicit customer confirmation| CHECKS
+    CHECKS --> SHARED[("Shared authoritative business/case facts<br/>Identity scope, owner, orders, consent and action receipts")]
+    SHARED -->|Scoped task view| G
+    SHARED -->|Permitted task context| READING
+    SHARED -.->|Permitted task context| RETURNS
+    SHARED -.->|Permitted task context| ACCOUNT
+
+    PERSONAL[("Customer-specific memory<br/>Original reviews, preferences and consent<br/>Customer-scoped, not exposed across users")]
+    PERSONAL -->|Relevant personal evidence| READING
+    PERSONAL -->|Relevant customer context| G
+    UNIQUE[("PROPOSED domain-owned memory namespaces<br/>Orders/support playbooks<br/>Returns/payment exception lessons<br/>Account recovery procedures<br/>Reading expertise and cohort priors")]
+    UNIQUE -.->|Relevant domain knowledge| G
+    UNIQUE -.->|Reading-only projection| READING
+    UNIQUE -.->|Returns-only projection| RETURNS
+    UNIQUE -.->|Recovery-only projection| ACCOUNT
+
+    OUTCOMES["Outcomes + volunteered feedback"] -.-> REVIEW["Validate aggregates and review lessons"]
+    REVIEW -.-> EVAL["Version, evaluate and approve publication"]
+    EVAL -.-> UNIQUE
+    G -->|Response + sources + proposed next action| UI
+
+    classDef proposed fill:#f9f5eb,stroke:#947c58,stroke-dasharray:5 4;
+    class RETURNS,ACCOUNT,UNIQUE,OUTCOMES,REVIEW,EVAL proposed;
 ```
 
-`recommend_books()` calls `specialist.run()` as a nested agent run and returns the
-validated result to the generalist. This is on-demand delegation, not an autonomous
-background worker or a handoff of the customer session. Both agents use the same
-configured LLM in live mode, through separate runs. Scripted mode substitutes separate
-deterministic fixture models while exercising the same tools and business operations.
-The two containers represent infrastructure: `web-1` hosts the application and agent
-workflows; `postgres-1` hosts their database. Separate agent services would add deployment
-and coordination overhead without a requirement for independent scaling in this demo.
+| Request or condition | Route | Boundary |
+| --- | --- | --- |
+| Known order, general help question, or standard return | Concierge tools/retrieval | Supported procedure, sufficient evidence and allowed action |
+| Invited next-read consultation | Reading specialist | Task fit; this need not be a difficult request |
+| Conflicting return/payment/fulfillment records or a supported exception | Proposed returns/payments specialist | Domain interpretation or evidence gathering; no policy override |
+| Evidence-dependent steps within approved account recovery | Proposed account specialist | Verified recovery workflow and permitted actions must exist first |
+| Missing customer fact | One focused clarifying question | Another agent cannot manufacture the missing evidence |
+| Missing authorization, an unsupported action or discretionary policy exception | Approved verification or a human | Delegation cannot grant authority |
 
-PostgreSQL fits the transactional relationships between customers, orders, purchased
-copies, proposals, and return receipts. Foreign keys enforce ownership relationships;
-transactions, row locks, and unique constraints protect confirmation and duplicate
-requests. Prices use integer USD cents. Flexible preferences, case state, model history,
-review records, and warehouse signals use JSON alongside the relational operational
-records. The LLM selects tools and proposes actions; backend code owns authorization,
-return eligibility, catalog validation, and confirmation-gated account actions.
+Routing uses explicit capability/evidence criteria, not only an LLM confidence score.
+Basic returns are consequential actions, even on the routine path. The customer
+confirms, and backend code rechecks ownership, eligibility, paid amount and duplicates.
+Domain specialists do not require separate containers; deployment is a separate decision.
 
-Saved preferences and prior reviews are customer-scoped and shared across cases;
-newly volunteered reading feedback stays in its current case unless the customer
-explicitly saves a preference. Both agents receive the relevant shared context. Claims
-about earlier feedback cite actual stored reviews or customer messages, with escaped
-verbatim text and dated previews. Customer-visible cited messages retain source
-snapshots; an unavailable citation is labeled rather than rendered as a verified source.
+### Shared, customer-specific and unique domain memory
 
-[bookly/warehouse.py](bookly/warehouse.py) is a read-only data adapter, not a third
-agent. `MockDataWarehouse.customer_signals()` reads a PostgreSQL fixture containing genre
-purchase counts, a typical purchase price, provenance, a refresh timestamp, and dated
-wishlist, browsing, and dismissal records. It makes no external dataWarehouse network call. Among books matching the current request and
-explicit feedback, wishlist activity gets priority, then recent browsing. The backend
-excludes dismissed titles and rechecks the specialist's selections against that same
-candidate set. A wishlist is not purchase consent, and a page view does not prove taste.
-Historical spending never imposes a hidden budget.
+These are logical ownership and access boundaries, not necessarily separate databases.
+The same business fact should have one authoritative owner rather than conflicting
+copies in each agent's memory.
 
-Mock behavior records live in `WarehouseSnapshot.signals` under `wishlist_items`,
-`recently_viewed`, and `dismissed_recommendations`. Each record has a catalog `book_id`
-and `recorded_at`; browsing also has `view_count`. Startup fills missing behavior
-fixtures once without overwriting existing lists, including intentionally empty lists.
-Reset restores the demo baseline. These fixtures simulate collected activity; the UI
-does not yet collect real browsing, wishlist, or dismissal events.
+| Memory layer | Contents | Ownership and access |
+| --- | --- | --- |
+| Shared business/case state | Verified identity scope, current goal, owner, order facts, blockers, action receipts | Authoritative backend records; customer/object scope and RBAC still apply |
+| Customer-specific memory | Explicit preferences, original reviews, consent and relevant history | Scoped to that customer; never a pool of private conversations exposed to other users |
+| Unique domain/specialist memory | Curated expertise, domain procedures, reviewed lessons and validated cohort/ranking signals | Domain-owned, versioned and retrieved through a minimal task-specific projection |
+| Temporary working context | Current candidates, evidence and the active consultation state | Bounded to the task; not automatically promoted into lasting knowledge |
 
-The adapter ignores snapshots older than seven days, malformed/future activity,
-browsing older than 30 days, and dismissals older than 90 days. Wishlist entries stay
-active while present in a fresh snapshot. Missing, stale, or unavailable warehouse
-signals do not block discovery; preferences, reviews, and eligible catalog books remain
-available. Activity claims have dated source previews labeled as observations. A real
-warehouse query and event ingestion remain future integrations.
+Shared memory preserves continuity across agents, channels and pauses. Unique memory
+provides deeper domain expertise. An agent can receive a view of shared/customer facts
+and retrieve its own domain knowledge without obtaining unrestricted access to either.
 
-General support uses a small mock RAG pipeline in [bookly/knowledge.py](bookly/knowledge.py):
-keyword retrieval over three versioned help articles, bounded to three passages per query.
-The generalist calls `search_support_knowledge`, then answers from the returned text
-with article citations. No embeddings, vector database, or external knowledge service
-is used. Unknown topics return no matches. Shipping rules are fictional; return text
-uses the same constants as backend enforcement. Retrieved policy explains the rules
-but cannot authorize actions, change refund amounts, or bypass identity checks.
+| Domain | Why it exists | Current-case context | Unique domain knowledge in the target design |
+| --- | --- | --- | --- |
+| Orders/support concierge | Routine service and delivery guidance, normally concierge-led | Owned order, delivery record, region and current question | Carrier/support playbooks and reviewed delay patterns |
+| Returns/payments | Supported exception investigation | Paid amount, policy version, eligibility, proposal, consent, receipt and settlement references | Approved exception procedures and reviewed resolution lessons |
+| Account management | Approved verified recovery | Verified identity, recovery stage, allowed actions and blockers | Recovery procedures and reviewed failure patterns; no passwords/codes |
+| Reading/discovery | Personalized guidance | Current wishes, personal feedback, budget and eligible catalog | Book expertise, validated ranking lessons and aggregate cohort priors |
 
-The 24-book catalog uses ordinary SQL filtering and model-assisted selection; it does
-not require embeddings or a vector database. Startup adds missing catalog titles and
-initial customer context without resetting existing demo records. Explicit reset
-restores the baseline. Table creation uses SQLAlchemy `create_all`; production schema
-changes would require versioned migrations.
+A domain can own procedures and memory without adding an LLM agent for every routine
+operation. A specialist is justified when its reasoning task, context, permissions
+and evaluation requirements warrant another model loop.
 
-See [docs/architecture.md](docs/architecture.md) for the original design notes and
-production considerations. The active natural-language service procedure is
-[bookly/procedures/service.md](bookly/procedures/service.md). This is an independent
-prototype informed by natural-language workflow principles, not an implementation
-of Decagon's proprietary AOP runtime. Orders, payments, warehouse data, expert requests,
-and delivery integrations remain mocked; SMS/voice remain design previews.
+### Tradeoffs and learning expansion
+
+| Choice | Tradeoff | Benefit |
+| --- | --- | --- |
+| Routine tool path plus specialists | Routing errors, extra model latency and handoff coordination | Keep common support fast while using domain expertise where needed |
+| Shared authoritative facts plus unique domain knowledge | Ownership, retrieval, freshness and controlled memory writes | Preserve continuity without confusing individual facts and group inferences |
+| Fixed return workflow: identify copy → check eligibility → show card → confirm | Unsupported recovery paths need a new flow or human; less flexible than agent-selected tool sequences | Known demo scenarios need few decisions, so explicit stages are easier to verify |
+
+The three production priorities are:
+
+1. **More flexible specialist workflows:** allow evidence selection and tool sequencing
+   as cases become more complex, while retaining permissions, transaction limits and consent.
+2. **Connected service with human ownership:** integrate backend systems with enforced
+   RBAC; preserve context across channels and human handoffs, with pause/resume and
+   consent-based proactive outreach.
+3. **Specialist memory that improves with outcomes:** evaluate and version reviewed
+   domain lessons, preserve authoritative customer facts, monitor changes and support rollback.
+
+The proposed learning cycle is **outcomes/feedback → validated aggregation or reviewed
+lessons → versioning and evaluation → approved publication → scoped retrieval**, with
+monitoring and rollback. Record source, time window, supporting sample and allowed use.
+Do not automatically convert a model's reasoning or one conversation into a general rule.
+
+Reading cohorts could combine stated genre interests, relevant geography and verified
+loyalty membership. They are soft priors, not individual preferences. Current requests,
+budgets, stock, original customer feedback and backend policy take precedence. Geography
+can inform availability and local context; membership benefits need verified entitlement.
+The current mock adapter has individual activity, not learned cohort memory.
+
+### Current implementation boundaries
+
+PostgreSQL fits customer/order/item/proposal/receipt relationships. Foreign keys,
+transactions, row locks and unique constraints protect operational integrity and duplicate
+requests. Prices use integer cents. Flexible context and history use JSON alongside
+relational records. Confirmation receipts are replayed into agent history and current
+status is read from the database; older pending text cannot become action authority.
+
+General support uses bounded keyword retrieval over three versioned local help articles
+in [bookly/knowledge.py](bookly/knowledge.py). The reading specialist searches a 24-book
+catalog and consumes the [mock dataWarehouse adapter](bookly/warehouse.py), whose wishlist,
+browsing and dismissal signals affect eligible candidates. Source previews distinguish
+reviews, customer messages, help text and observed activity. Explicit preferences still
+require Save preference; current-case feedback stays distinct from permanent tastes.
+
+No vector database or external warehouse is required. `create_all` bootstraps this local
+demo; production needs migrations, verified authentication, real integrations and enforced
+connector permissions. Real human ownership, SMS/voice, outbound outreach, additional
+domain specialists and learned specialist memory remain proposals.
+
+See [current implementation notes](docs/architecture.md), the [full production proposal](docs/production-agent-orchestration.md),
+and the active [service procedure](bookly/procedures/service.md). This independent prototype
+is informed by natural-language workflow principles; it does not implement Decagon's
+proprietary runtime.
 
 ## Optional reference
 

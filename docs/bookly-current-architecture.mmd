@@ -1,0 +1,38 @@
+flowchart TB
+    customer["Customer"] --> ui["Web chat"]
+    ui --> api["FastAPI: session identity and case lookup"]
+    api --> concierge["Generalist concierge"]
+    prompts["Service procedure + channel instructions + fresh case context"] -.-> concierge
+    concierge <-->|Live model calls| llm["Configured provider API"]
+
+    subgraph web["web-1: one application service"]
+        api
+        concierge
+        tools["Typed business tools: orders, eligibility, return proposals and status"]
+        rag["Mock RAG: topic and keyword retrieval, up to 3 passages"]
+        specialist["Reading specialist: structured advice, up to 2 picks"]
+        validation["Backend catalog and behavioral checks"]
+        warehouse["Mock dataWarehouse adapter"]
+        confirm["Confirmation endpoint: ownership, eligibility, paid amount and idempotency"]
+    end
+
+    concierge <-->|Operational questions| tools
+    concierge <-->|General support questions| rag
+    articles["Versioned local help articles"] --> rag
+    concierge -->|Invited book discovery| specialist
+    specialist <-->|Live model calls| llm
+    specialist <-->|Catalog and reading context| db
+    warehouse --> specialist
+    specialist --> validation -->|Validated advice| concierge
+
+    subgraph storage["postgres-1: PostgreSQL"]
+        db[("Orders and catalog<br/>Case state and history<br/>Preferences, reviews and events<br/>Mock behavior snapshots")]
+    end
+    db -->|Customer-scoped signals| warehouse
+    tools <--> db
+    db -->|Relevant memory and confirmed action status| concierge
+
+    ui -->|Explicit customer confirmation| confirm
+    confirm -->|Transactional write| db
+    confirm -->|Return receipt| ui
+    concierge -->|Answer, sources or proposed action| ui
